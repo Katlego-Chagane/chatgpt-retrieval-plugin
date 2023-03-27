@@ -1,9 +1,15 @@
 {
   "schema_version": "v1",
   "name_for_model": "dingani",
+<<<<<<< HEAD
   "name_for_human": "Dingani Assistant",
   "description_for_model": "Use this tool to solve any problem in South Africa related to Finance, Education, Cooking, Engeering, Health and Medicine, Media and Advertising, Strategy and Product Development, Technology and News. Do not use this tool if the context is not for South Africa.",
   "description_for_human": "Your personal assistance for any question you might have.",
+=======
+  "name_for_human": "Dingani",
+  "description_for_model": "Plugin for searching through the user's documents (such as files, emails, and more) to find answers to questions and retrieve relevant information. Use it whenever a user asks something that might be found in their personal information.",
+  "description_for_human": "Search through your documents.",
+>>>>>>> d234a17fedb75a5cb9474081a7f7242dc30ce5be
   "auth": {
     "type": "user_http",
     "authorization_type": "bearer"
