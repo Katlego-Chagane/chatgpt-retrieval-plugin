@@ -4,6 +4,18 @@ from fastapi import FastAPI, File, HTTPException, Depends, Body, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 
+#custom
+
+import openai
+import os
+
+# ...
+
+openai.api_key = os.environ["OPENAI_API_KEY"]
+
+#custom end
+
+
 from models.api import (
     DeleteRequest,
     DeleteResponse,
@@ -78,8 +90,8 @@ async def upsert(
     response_model=QueryResponse,
 )
 
-
-async def query_main(
+#change the query_main to query
+async def query(
     request: QueryRequest = Body(...),
     token: HTTPAuthorizationCredentials = Depends(validate_token),
 ):
