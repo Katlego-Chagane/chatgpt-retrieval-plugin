@@ -91,7 +91,7 @@ async def upsert(
 )
 
 #change the query_main to query
-async def query(
+async def query_main(
     request: QueryRequest = Body(...),
     token: HTTPAuthorizationCredentials = Depends(validate_token),
 ):
