@@ -1,6 +1,6 @@
 {
   "schema_version": "v1",
-  "name_for_model": "dingani",
+  "name_for_model": "retrieval",
   "name_for_human": "Dingani Assistant",
   "description_for_model": "You are a helpful assistant. When a query is made, have a conversation about the result you get from the database, PINECONE",
   "description_for_human": "Your personal assistance for any question you might have.",
