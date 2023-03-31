@@ -3,6 +3,9 @@ import uvicorn
 from fastapi import FastAPI, File, HTTPException, Depends, Body, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
+# custom
+import openai 
+import json 
 
 from models.api import (
     DeleteRequest,
@@ -57,10 +60,10 @@ async def upsert_file(
         raise HTTPException(status_code=500, detail=f"str({e})")
 
 
-@app.post(
-    "/upsert",
-    response_model=UpsertResponse,
-)
+#@app.post(
+ #   "/upsert",
+  #  response_model=UpsertResponse,
+#)
 async def upsert(
     request: UpsertRequest = Body(...),
     token: HTTPAuthorizationCredentials = Depends(validate_token),
@@ -77,6 +80,57 @@ async def upsert(
     "/query",
     response_model=QueryResponse,
 )
+
+# custom
+
+
+@app.post("/query", response_model=PineconeQueryResponse)
+async def query_pinecone(request: PineconeQueryRequest):
+    query_request = {
+        "namespace": os.getenv("PINECONE_NAMESPACE"),
+        "queries": request.queries,
+    }
+
+    response = pinecone.deps.pinecone_client.query(**query_request)
+
+    # Extract and format the search results
+    for query_result in response["results"]:
+        pinecone_results = query_result["results"]
+        formatted_results = [f"{i+1}. {result['text']}" for i, result in enumerate(pinecone_results)]
+
+        # Generate a conversational response using OpenAI API and the search results
+        openai_messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": query_result["query"]},
+            {"role": "assistant", "content": "\n".join(formatted_results)}
+        ]
+        openai_response = openai.Completion.create(
+            engine="text-davinci-002",
+            messages=openai_messages,
+            temperature=0.8,
+            max_tokens=150,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0,
+        )
+
+        ai_message = openai_response.choices[0].message['content']
+
+        # Replace the original search results with the generated conversational response
+        query_result["results"] = [{"text": ai_message}]
+
+    return response
+
+
+
+
+
+
+#custom end
+
+
+
+
 async def query_main(
     request: QueryRequest = Body(...),
     token: HTTPAuthorizationCredentials = Depends(validate_token),
