@@ -1,3 +1,6 @@
+from pydantic import BaseModel
+from typing import List, Optional
+
 from models.models import (
     Document,
     DocumentChunkWithScore,
@@ -5,10 +8,6 @@ from models.models import (
     Query,
     QueryResult,
 )
-from pydantic import BaseModel
-from typing import List, Optional
-
-
 class UpsertRequest(BaseModel):
     documents: List[Document]
 
