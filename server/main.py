@@ -110,7 +110,7 @@ async def query_main(
         results = await datastore.query(
             request.queries,
         )
-        chatgpt_response = generate_chatgpt_response(results[0].results[0])
+        chatgpt_response = generate_chatgpt_response(results.results[0].results[0])
         return QueryResponse(results=results, chatgpt_response=chatgpt_response)
     except Exception as e:
         print("Error:", e)
