@@ -1,10 +1,10 @@
-import traceback
 import os
+import openai
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, Depends, Body, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-import openai
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 from models.api import (
     DeleteRequest,
@@ -17,7 +17,6 @@ from models.api import (
 from datastore.factory import get_datastore
 from services.file import get_document_from_file
 
-openai.api_key = os.environ.get("OPENAI_API_KEY")
 bearer_scheme = HTTPBearer()
 BEARER_TOKEN = os.environ.get("BEARER_TOKEN")
 assert BEARER_TOKEN is not None
@@ -32,6 +31,7 @@ def validate_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sc
 app = FastAPI(dependencies=[Depends(validate_token)])
 app.mount("/.well-known", StaticFiles(directory=".well-known"), name="static")
 
+# Create a sub-application, in order to access just the query endpoint in an OpenAPI schema, found at http://0.0.0.0:8000/sub/openapi.json when the app is running locally
 sub_app = FastAPI(
     title="Retrieval Plugin API",
     description="A retrieval API for querying and filtering documents based on natural language queries and metadata",
@@ -74,27 +74,6 @@ async def upsert(
         raise HTTPException(status_code=500, detail="Internal Service Error")
 
 
-def generate_chatgpt_response(search_result, user_query):
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant that can provide information on products."},
-        {"role": "user", "content": user_query},
-        {"role": "assistant", "content": f"Banana is a term used in the name of the product '{search_result['text']}'. It is a leave-in conditioner, and you can find more information about it here: {search_result['metadata']['url']}"}
-    ]
-
-    response = openai.Completion.create(
-        engine="text-davinci-002",
-        prompt={
-            "messages": messages
-        },
-        max_tokens=150,
-        n=1,
-        stop=None,
-        temperature=0.5,
-    )
-
-    return response.choices[0].text.strip()
-
-
 @app.post(
     "/query",
     response_model=QueryResponse,
@@ -106,8 +85,29 @@ async def query_main(
         results = await datastore.query(
             request.queries,
         )
-        chatgpt_response = generate_chatgpt_response(results.results[0].results[0], request.queries[0]
+        return QueryResponse(results=results)
+    except Exception as e:
+        print("Error:", e)
+        raise HTTPException(status_code=500, detail="Internal Service Error")
 
+
+@sub_app.post(
+    "/query",
+    response_model=QueryResponse,
+    # NOTE: We are describing the shape of the API endpoint input due to a current limitation in parsing arrays of objects from OpenAPI schemas. This will not be necessary in the future.
+    description="Accepts search query objects array each with query and optional filter. Break down complex questions into sub-questions. Refine results by criteria, e.g. time / source, don't do this often. Split queries if ResponseTooLargeError occurs.",
+)
+async def query(
+    request: QueryRequest = Body(...),
+):
+    try:
+        results = await datastore.query(
+            request.queries,
+        )
+        return QueryResponse(results=results)
+    except Exception as e:
+        print("Error:", e)
+        raise HTTPException(status_code=500, detail="Internal Service Error")
 
 
 @app.delete(
