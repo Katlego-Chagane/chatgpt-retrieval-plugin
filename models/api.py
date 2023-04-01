@@ -23,6 +23,7 @@ class QueryRequest(BaseModel):
 
 class QueryResponse(BaseModel):
     results: List[QueryResult]
+    chatgpt_response: Optional[str] = None
 
 
 class DeleteRequest(BaseModel):
