@@ -3,6 +3,7 @@ import uvicorn
 from fastapi import FastAPI, File, HTTPException, Depends, Body, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
+import openai
 
 from models.api import (
     DeleteRequest,
@@ -72,6 +73,32 @@ async def upsert(
         raise HTTPException(status_code=500, detail="Internal Service Error")
 
 
+def generate_chatgpt_response(search_result):
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant that can provide information on products."},
+        {"role": "user", "content": "What is Banana?"},
+        {"role": "assistant", "content": f"Banana is a term used in the name of the product '{search_result['text']}'. It is a leave-in conditioner, and you can find more information about it here: {search_result['metadata']['url']}"}
+    ]
+
+    response = openai.Completion.create(
+        engine="text-davinci-002",
+        prompt={
+            "messages": messages
+        },
+        max_tokens=150,
+        n=1,
+        stop=None,
+        temperature=0.5,
+    )
+
+    return response.choices[0].text.strip()
+
+
+
+
+
+
+
 @app.post(
     "/query",
     response_model=QueryResponse,
@@ -83,10 +110,12 @@ async def query_main(
         results = await datastore.query(
             request.queries,
         )
-        return QueryResponse(results=results)
+        chatgpt_response = generate_chatgpt_response(results['results'][0]['results'][0])
+        return {"results": results, "chatgpt_response": chatgpt_response}
     except Exception as e:
         print("Error:", e)
         raise HTTPException(status_code=500, detail="Internal Service Error")
+
 
 
 @sub_app.post(
