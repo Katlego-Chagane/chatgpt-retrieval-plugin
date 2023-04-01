@@ -16,6 +16,7 @@ from models.api import (
 from datastore.factory import get_datastore
 from services.file import get_document_from_file
 
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 bearer_scheme = HTTPBearer()
 BEARER_TOKEN = os.environ.get("BEARER_TOKEN")
 assert BEARER_TOKEN is not None
