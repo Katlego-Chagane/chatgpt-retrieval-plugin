@@ -4,18 +4,6 @@ from fastapi import FastAPI, File, HTTPException, Depends, Body, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 
-#custom
-
-import openai
-
-# ...
-
-#openai.api_key = os.environ["OPENAI_API_KEY"]
-openai.api_key = "Bearer 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"
-
-#custom end
-
-
 from models.api import (
     DeleteRequest,
     DeleteResponse,
@@ -26,19 +14,6 @@ from models.api import (
 )
 from datastore.factory import get_datastore
 from services.file import get_document_from_file
-
-
-app = FastAPI()
-app.mount("/.well-known", StaticFiles(directory=".well-known"), name="static")
-
-# Create a sub-application, in order to access just the query endpoint in an OpenAPI schema, found at http://0.0.0.0:8000/sub/openapi.json when the app is running locally
-sub_app = FastAPI(
-    title="Retrieval Plugin API",
-    description="A retrieval API for querying and filtering documents based on natural language queries and metadata",
-    version="1.0.0",
-    servers=[{"url": "https://sea-turtle-app-rhshb.ondigitalocean.app"}],
-)
-app.mount("/sub", sub_app)
 
 bearer_scheme = HTTPBearer()
 BEARER_TOKEN = os.environ.get("BEARER_TOKEN")
@@ -51,13 +26,26 @@ def validate_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sc
     return credentials
 
 
+app = FastAPI(dependencies=[Depends(validate_token)])
+app.mount("/.well-known", StaticFiles(directory=".well-known"), name="static")
+
+# Create a sub-application, in order to access just the query endpoint in an OpenAPI schema, found at http://0.0.0.0:8000/sub/openapi.json when the app is running locally
+sub_app = FastAPI(
+    title="Retrieval Plugin API",
+    description="A retrieval API for querying and filtering documents based on natural language queries and metadata",
+    version="1.0.0",
+    servers=[{"url": "https://your-app-url.com"}],
+    dependencies=[Depends(validate_token)],
+)
+app.mount("/sub", sub_app)
+
+
 @app.post(
     "/upsert-file",
     response_model=UpsertResponse,
 )
 async def upsert_file(
     file: UploadFile = File(...),
-    token: HTTPAuthorizationCredentials = Depends(validate_token),
 ):
     document = await get_document_from_file(file)
 
@@ -75,7 +63,6 @@ async def upsert_file(
 )
 async def upsert(
     request: UpsertRequest = Body(...),
-    token: HTTPAuthorizationCredentials = Depends(validate_token),
 ):
     try:
         ids = await datastore.upsert(request.documents)
@@ -89,79 +76,27 @@ async def upsert(
     "/query",
     response_model=QueryResponse,
 )
-
-#change the query_main to query
-#async def query_main(
- #   request: QueryRequest = Body(...),
-  #  token: HTTPAuthorizationCredentials = Depends(validate_token),
-#):
- #   try:
-  #      results = await datastore.query(
-   #         request.queries,
-    #    )
-     #   return QueryResponse(results=results)
-    #except Exception as e:
-     #   print("Error:", e)
-      #  raise HTTPException(status_code=500, detail="Internal Service Error")
-
-
-# custom start
-
-# ...
-
 async def query_main(
     request: QueryRequest = Body(...),
-    token: HTTPAuthorizationCredentials = Depends(validate_token),
 ):
     try:
-        # Query Pinecone datastore
-        results = await datastore.query(request.queries)
-        
-        # Extract and format the search results
-        pinecone_results = results[0]["results"]
-        formatted_results = [f"{i+1}. {result['text']}" for i, result in enumerate(pinecone_results)]
-        
-        # Generate a conversational response using OpenAI API and the search results
-        openai_messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": request.queries[0]["query"]},
-            {"role": "assistant", "content": "\n".join(formatted_results)}
-        ]
-        openai_response = openai.ChatCompletion.create(
-            model="text-davinci-002",
-            messages=openai_messages,
-            temperature=0.8,
-            max_tokens=150,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0,
+        results = await datastore.query(
+            request.queries,
         )
-
-        ai_message = openai_response.choices[0].message['content']
-
-        # Return the conversational response
-        return {"results": [{"query": request.queries[0]["query"], "results": [{"text": ai_message}]}]}
-
+        return QueryResponse(results=results)
     except Exception as e:
         print("Error:", e)
         raise HTTPException(status_code=500, detail="Internal Service Error")
 
 
-#custom end
-
-
-
-
-
 @sub_app.post(
     "/query",
     response_model=QueryResponse,
-    # NOTE: We are describing the the shape of the API endpoint input due to a current limitation in parsing arrays of objects from OpenAPI schemas. This will not be necessary in future.
+    # NOTE: We are describing the shape of the API endpoint input due to a current limitation in parsing arrays of objects from OpenAPI schemas. This will not be necessary in the future.
     description="Accepts search query objects array each with query and optional filter. Break down complex questions into sub-questions. Refine results by criteria, e.g. time / source, don't do this often. Split queries if ResponseTooLargeError occurs.",
 )
 async def query(
     request: QueryRequest = Body(...),
-    token: HTTPAuthorizationCredentials = Depends(validate_token),
 ):
     try:
         results = await datastore.query(
@@ -179,7 +114,6 @@ async def query(
 )
 async def delete(
     request: DeleteRequest = Body(...),
-    token: HTTPAuthorizationCredentials = Depends(validate_token),
 ):
     if not (request.ids or request.filter or request.delete_all):
         raise HTTPException(
