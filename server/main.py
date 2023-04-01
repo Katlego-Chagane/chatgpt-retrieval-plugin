@@ -10,7 +10,8 @@ import openai
 
 # ...
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
+#openai.api_key = os.environ["OPENAI_API_KEY"]
+openai.api_key = "Bearer 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"
 
 #custom end
 
@@ -106,6 +107,8 @@ async def upsert(
 
 # custom start
 
+# ...
+
 async def query_main(
     request: QueryRequest = Body(...),
     token: HTTPAuthorizationCredentials = Depends(validate_token),
@@ -124,8 +127,8 @@ async def query_main(
             {"role": "user", "content": request.queries[0]["query"]},
             {"role": "assistant", "content": "\n".join(formatted_results)}
         ]
-        openai_response = openai.Completion.create(
-            engine="text-davinci-002",
+        openai_response = openai.ChatCompletion.create(
+            model="text-davinci-002",
             messages=openai_messages,
             temperature=0.8,
             max_tokens=150,
