@@ -1,10 +1,8 @@
 import os
-import openai
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, Depends, Body, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
 from models.api import (
     DeleteRequest,
@@ -36,7 +34,7 @@ sub_app = FastAPI(
     title="Retrieval Plugin API",
     description="A retrieval API for querying and filtering documents based on natural language queries and metadata",
     version="1.0.0",
-    servers=[{"url": "https://sea-turtle-app-rhshb.ondigitalocean.app/"}],
+    servers=[{"url": "https://your-app-url.com"}],
     dependencies=[Depends(validate_token)],
 )
 app.mount("/sub", sub_app)
